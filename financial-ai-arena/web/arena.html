@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>擂台竞技 · 金融 AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;800&family=Noto+Sans+SC:wght@400;600;700&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body class="page-arena">
+  <header class="topnav topnav--tournament">
+    <div class="brand">
+      <h1>擂台竞技</h1>
+      <p class="brand-sub">F·AI ARENA · 多模型纸交易对战</p>
+    </div>
+    <nav>
+      <a href="./index.html">首页</a>
+      <a href="./arena-setup.html">擂台配置</a>
+      <a href="./advisor.html">真实金融建议</a>
+    </nav>
+  </header>
+  <div class="wrap wrap--arena">
+    <p id="status" class="load-pill">正在加载 <code>arena_state.json</code>…</p>
+
+    <div class="panel panel--ring" id="runPanel">
+      <div class="panel-head-arcade">
+        <h2>开始比赛 · 本场参数</h2>
+        <span class="arcade-badge">SIM MATCH</span>
+      </div>
+      <details class="panel-help">
+        <summary>赛制与数据流（轮询 / live JSON）</summary>
+        <p class="sub">
+          上方发起 sim，下方摘要来自<strong>当前已加载</strong>的 <code>arena_state.json</code>（或演示数据）。
+          <strong>像素榜与表格</strong>反映上一场已结束 sim 的 JSON，与勾选「下一场几人」无关；四人场请先勾选 4 人再开赛。
+          <code>POST /api/run-sim</code> 后台跑 <code>arena_run.py</code>，约每 1.5s 轮询；赛间读 <code>arena_live.json</code> 刷新 NAV；结束后写回 <code>arena_state.json</code>。
+          初始价默认脚本漂移；<code>ARENA_USE_TUSHARE_PRICES=1</code> 且配置 <code>TUSHARE_TOKEN</code> 可用 Tushare 日线收盘初始化（非逐笔）。
+        </p>
+      </details>
+      <p id="runApiWarn" class="sub" style="color:#f85149;margin-top:6px"></p>
+
+      <div class="run-form-arcade">
+        <section class="form-section">
+          <h3 class="form-section__title">时间规则 · CLOCK</h3>
+          <div class="stat-grid">
+            <div class="stat-cell">
+              <span class="stat-cell__lab">总时长上限</span>
+              <input type="number" id="runDuration" class="inp inp--stat" min="15" max="7200" value="60" title="整场比赛墙时上限；与「最多回合」先到先停" />
+              <span class="stat-cell__hint">单位：秒 · 与「最多回合」先到先停</span>
+            </div>
+            <div class="stat-cell">
+              <span class="stat-cell__lab">最多回合</span>
+              <input type="number" id="runMaxRounds" class="inp inp--stat" min="1" max="500" placeholder="空=不限" title="留空则仅按总时长跑" />
+              <span class="stat-cell__hint">留空 = 不限回合数</span>
+            </div>
+            <div class="stat-cell">
+              <span class="stat-cell__lab">每回合预算</span>
+              <input type="number" id="runSecPerRound" class="inp inp--stat" min="5" max="600" placeholder="空=自动" title="本回合所有模型墙时总预算" />
+              <span class="stat-cell__hint">秒 · 空则按剩余时间均分</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <h3 class="form-section__title">赛题与行情 · BRIEF</h3>
+          <p class="sub" style="margin:0 0 8px">赛题 Markdown → 写入各模型 user 提示（非投资建议）</p>
+          <textarea id="runScenarioMd" class="inp mono" rows="5" style="width:100%;min-height:88px;box-sizing:border-box" placeholder="竞赛背景、规则、假设…"></textarea>
+          <p class="sub" style="margin:12px 0 8px">从文件载入</p>
+          <div class="file-row-arcade">
+            <label for="runMdFile">赛题 .md</label>
+            <input type="file" id="runMdFile" accept=".md,.markdown,text/markdown,text/plain" />
+            <label for="runJsonFile">初始价 .json</label>
+            <input type="file" id="runJsonFile" accept=".json,application/json" />
+          </div>
+          <p class="sub" style="margin:0 0 8px">初始价 JSON（代码 → 数字）</p>
+          <textarea id="runPricesJson" class="inp mono" rows="3" style="width:100%;min-height:52px;box-sizing:border-box" placeholder='{"600519.SH":1800,"000001.SZ":12.5}'></textarea>
+          <div class="field-stack" style="margin-top:12px">
+            <label class="stat-cell__lab" for="runSymbolsOverride">标的覆盖（可选）</label>
+            <input type="text" id="runSymbolsOverride" class="inp mono" placeholder="空 = 默认标的，例 600519.SH,000001.SZ" />
+          </div>
+          <label class="radio-pill" style="margin-top:12px;display:inline-flex;align-items:center;gap:8px">
+            <input type="checkbox" id="runFreezePrices" />
+            冻结行情（回合间价格不漂移）
+          </label>
+        </section>
+
+        <section class="form-section">
+          <h3 class="form-section__title">上场阵容 · LINEUP</h3>
+          <div id="runContestantsHost" class="run-contestants-host"></div>
+        </section>
+
+        <div class="run-actions">
+          <button type="button" class="btn btn-primary" id="btnStartSim">开始比赛</button>
+          <button type="button" class="btn" id="btnStopPoll" hidden>停止轮询</button>
+          <span id="runProgress" class="sub"></span>
+        </div>
+      </div>
+
+      <div class="panel-divider"></div>
+      <div class="run-readonly">
+        <p class="sub" style="margin-top:0">
+          <strong>本场参数（只读）</strong>：与当前画布同源；「时长」输入框只作用于<strong>下一次</strong>开赛。
+        </p>
+        <div class="metrics-tape" aria-label="本场参数">
+          <span class="tag">模式</span><span id="m_mode">—</span>
+          <span class="tag">时长(s)</span><span id="m_dur">—</span>
+          <span class="tag">回合</span><span id="m_rounds">—</span>
+          <span class="tag">回合上限</span><span id="m_maxr">—</span>
+          <span class="tag">每回合秒</span><span id="m_spr">—</span>
+          <span class="metrics-tape-line" id="m_scenario_preview"></span>
+        </div>
+        <p class="sub" style="margin:10px 0 4px"><span class="tag">标的</span> <span id="m_sym">—</span></p>
+        <p class="sub" style="margin:0 0 4px"><span class="tag">价格来源</span> <span id="m_psrc">—</span></p>
+        <p class="sub" style="margin:0 0 10px"><span class="tag">参赛槽位</span> <span id="m_slots">—</span></p>
+        <div class="warn">不构成投资建议。</div>
+        <div class="field-row field-row--inline" style="margin-top:10px">
+          <button type="button" class="btn" id="btnReload">重新拉取 JSON</button>
+          <button type="button" class="btn btn-primary" id="btnDemo" title="载入内置假数据：非真实行情、非金融 skill 产出，仅用于预览像素与表格">加载演示数据</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="arena-dual">
+    <div class="panel panel--ring">
+      <div class="panel-head-arcade">
+        <h2>像素擂台</h2>
+        <span class="arcade-badge">8-BIT RING</span>
+      </div>
+      <p class="sub" style="margin-top:0">
+        程序绘制擂台、围绳与四角 Q 版；<code>requestAnimationFrame</code> 驱动环境动效。赛间 <code>ARENA_LIVE_PROGRESS=1</code> 时每回合刷新 NAV，换位带插值；终局约 10s <strong>决算表情</strong>。
+      </p>
+      <div class="pixel-crt">
+      <div class="arena-stage">
+        <canvas class="pixel arena-canvas" id="arenaHero" width="960" height="360"></canvas>
+      </div>
+      </div>
+    </div>
+
+    <div class="panel panel--ring">
+      <p class="score-dock-title">NAV · 像素条形榜</p>
+      <p class="sub" style="margin-top:0">按本场 NAV 比例；赛间为回合快照，结束后为终局。全员 NAV 极接近时按名次拉开条宽。</p>
+      <div class="pixel-crt">
+      <canvas class="pixel" id="pixelRank" width="640" height="220"></canvas>
+      </div>
+    </div>
+    </div>
+
+    <div class="panel panel--ring" id="observePanel">
+      <h2>比赛观察 · 模型回放</h2>
+      <p class="sub" style="margin-top:0">
+        <strong>回合回放</strong>（<code>turn_logs</code>）：每回合各槽位模型输出尾部与 <code>decision</code>。
+        <strong>赛后名次反馈</strong>（<code>post_game_feedback</code>）：每场 sim 结束后<strong>再各问一轮</strong>，把<strong>全员排名、你的名次、与第一名的 NAV 差</strong>发给该模型，请其用短文复盘（非训练、非投资建议；下一场若要「记住」需自行把本段拼进人格或外部记忆）。
+        关闭反馈轮：<code>ARENA_POST_GAME_FEEDBACK=0</code>。
+        <strong>回合一多时</strong>：外层列表与「每个槽位展开后的回合块」均支持<strong>框内纵向滚动</strong>，避免整页被撑得很长。
+      </p>
+      <p class="sub" style="margin-top:8px;margin-bottom:6px"><strong>回合回放</strong></p>
+      <div id="observeHost"></div>
+      <p class="sub" style="margin-top:16px;margin-bottom:6px"><strong>赛后名次反馈</strong></p>
+      <div id="observeFeedbackHost"></div>
+    </div>
+
+    <div class="panel panel--ring">
+      <h2>数据明细表</h2>
+      <table>
+        <thead>
+          <tr><th>#</th><th>擂台昵称</th><th>槽位</th><th>显示名</th><th>provider</th><th>NAV</th></tr>
+        </thead>
+        <tbody id="tbl"></tbody>
+      </table>
+    </div>
+  </div>
+  <script type="module">
+    import { loadArenaState, DEMO_STATE, renderMetaLine } from "./shared.js";
+    import {
+      drawPixelArenaScene,
+      drawPixelRank,
+      rankedSlotsForArena,
+      rebuildFinalRankingFromSnapshots,
+    } from "./arena-draw.js";
+
+    /** 排名顺序变化时触发四角位移动画（与每回合 live JSON 刷新配合） */
+    let lastRankOrderIds = [];
+    let rankSwapAnim = null;
+    let settlementUntilMs = null;
+    let wasSimRunning = false;
+
+    function touchRankOrderForAnim(data) {
+      const ids = rankedSlotsForArena(data)
+        .map((r) => String(r.id || "").trim())
+        .filter(Boolean);
+      const same =
+        ids.length === lastRankOrderIds.length && ids.every((id, i) => id === lastRankOrderIds[i]);
+      if (lastRankOrderIds.length && !same) {
+        rankSwapAnim = { fromIds: [...lastRankOrderIds], t0: performance.now(), durationMs: 620 };
+      }
+      lastRankOrderIds = ids;
+    }
+
+    const $ = (id) => document.getElementById(id);
+
+    const API_ROOT = new URL("../api/", import.meta.url);
+    function arenaApi(name) {
+      const n = String(name || "").replace(/^\//, "");
+      return new URL(n, API_ROOT).href;
+    }
+
+    const canvasEl = $("arenaHero");
+
+    let arenaSceneData = DEMO_STATE;
+
+    function renderTurnLogs(data) {
+      const host = $("observeHost");
+      if (!host) return;
+      const logs = data.turn_logs;
+      if (!Array.isArray(logs) || logs.length === 0) {
+        host.innerHTML =
+          '<p class="sub">暂无 <code>turn_logs</code>：完整跑完页内「开始比赛」或终端 <code>arena_run.py sim</code> 后会有每回合记录。点「加载演示数据」时内置样例未带日志。</p>';
+        return;
+      }
+      const by = new Map();
+      for (const row of logs) {
+        const sid = String(row.slot_id || "");
+        if (!by.has(sid)) by.set(sid, []);
+        by.get(sid).push(row);
+      }
+      host.innerHTML = "";
+      const wrap = document.createElement("div");
+      wrap.className = "turn-observe";
+      for (const [sid, lines] of [...by.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+        lines.sort((x, y) => (x.round || 0) - (y.round || 0));
+        const det = document.createElement("details");
+        const sum = document.createElement("summary");
+        sum.textContent = `槽位 ${sid} · ${lines.length} 条回合（展开后框内滚动）`;
+        det.appendChild(sum);
+        const body = document.createElement("div");
+        body.className = "turn-slot-body";
+        for (const ln of lines) {
+          const block = document.createElement("div");
+          block.className = "turn-log-round";
+          const h = document.createElement("div");
+          h.className = "dec-line";
+          h.textContent = `第 ${ln.round} 回合 · decision: ${JSON.stringify(ln.decision || {})}`;
+          const pre = document.createElement("pre");
+          pre.textContent = String(ln.raw_tail || "").trim() || "（无 raw_tail）";
+          block.appendChild(h);
+          block.appendChild(pre);
+          body.appendChild(block);
+        }
+        det.appendChild(body);
+        wrap.appendChild(det);
+      }
+      const outer = document.createElement("div");
+      outer.className = "turn-observe-outer scroll-panel scroll-panel--tall";
+      outer.setAttribute("aria-label", "回合回放列表（外层可滚动）");
+      outer.appendChild(wrap);
+      host.appendChild(outer);
+    }
+
+    function mergeLiveArenaPayload(base, live) {
+      if (!live || live.active !== true) return base;
+      const merged = {
+        ...base,
+        mode: live.mode ?? base.mode,
+        rounds: live.round != null ? live.round : base.rounds,
+        duration_seconds: live.duration_seconds ?? base.duration_seconds,
+        symbols: live.symbols && live.symbols.length ? live.symbols : base.symbols,
+        ais: Array.isArray(live.ais) && live.ais.length ? live.ais : base.ais,
+        contestant_meta:
+          live.contestant_meta && typeof live.contestant_meta === "object"
+            ? { ...(base.contestant_meta || {}), ...live.contestant_meta }
+            : base.contestant_meta,
+        final_ranking:
+          Array.isArray(live.final_ranking) && live.final_ranking.length ? live.final_ranking : base.final_ranking,
+        snapshots: live.snapshots && typeof live.snapshots === "object" ? live.snapshots : base.snapshots,
+        price_source: live.price_source ?? base.price_source,
+        _live: true,
+      };
+      const rebuilt = rebuildFinalRankingFromSnapshots(merged);
+      if (rebuilt && rebuilt.length) merged.final_ranking = rebuilt;
+      return merged;
+    }
+
+    function renderRankingTable(data) {
+      const tb = $("tbl");
+      if (!tb) return;
+      tb.innerHTML = "";
+      rankedSlotsForArena(data).forEach((row, i) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${i + 1}</td><td>${row.stageName}</td><td>${row.id}</td><td>${row.display || ""}</td><td>${row.provider || ""}</td><td>${Number(row.value).toFixed(2)}</td>`;
+        tb.appendChild(tr);
+      });
+    }
+
+    function paintStripMetrics(data) {
+      $("m_mode").textContent = data.mode || "—";
+      $("m_dur").textContent = data.duration_seconds ?? "—";
+      const rd = data.rounds;
+      $("m_rounds").textContent = data._live ? `${rd ?? "—"}（进行中）` : rd ?? "—";
+      const mm = $("m_maxr");
+      if (mm) mm.textContent = data.match_max_rounds != null ? String(data.match_max_rounds) : "—";
+      const ms = $("m_spr");
+      if (ms) ms.textContent = data.match_seconds_per_round != null ? String(data.match_seconds_per_round) : "—";
+      const spv = $("m_scenario_preview");
+      if (spv) {
+        const t = String(data.scenario_md_preview || "").trim();
+        const fr = data.freeze_prices ? "已冻结行情漂移" : "";
+        if (t && fr) spv.textContent = `赛题摘录：${t} · ${fr}`;
+        else if (t) spv.textContent = `赛题摘录：${t}`;
+        else if (fr) spv.textContent = fr;
+        else spv.textContent = "";
+      }
+      $("m_sym").textContent = (data.symbols || []).join(", ") || "—";
+      const mps = $("m_psrc");
+      if (mps) mps.textContent = data.price_source || "drift_synthetic";
+      $("m_slots").textContent = renderMetaLine(data) || "—";
+    }
+
+    function paintLiveCharts(data) {
+      arenaSceneData = data;
+      touchRankOrderForAnim(data);
+      drawPixelRank($("pixelRank"), data);
+      drawPixelArenaScene(canvasEl, data, performance.now() * 0.001, {
+        wallMs: performance.now(),
+        rankSwapAnim,
+        settlementUntilMs,
+      });
+      paintStripMetrics(data);
+      renderRankingTable(data);
+    }
+
+    function paint(data) {
+      const clean = { ...data, _live: false };
+      arenaSceneData = clean;
+      touchRankOrderForAnim(clean);
+      drawPixelRank($("pixelRank"), clean);
+      paintStripMetrics(clean);
+      renderRankingTable(clean);
+      renderTurnLogs(clean);
+      renderPostGameFeedback(clean);
+    }
+
+    function renderPostGameFeedback(data) {
+      const host = $("observeFeedbackHost");
+      if (!host) return;
+      const fb = data.post_game_feedback;
+      if (!Array.isArray(fb) || fb.length === 0) {
+        host.innerHTML =
+          '<p class="sub">暂无 <code>post_game_feedback</code>：需用新版 <code>arena_run.py</code> 跑完 sim（默认会多一轮赛后提问）。旧 JSON 或 <code>ARENA_POST_GAME_FEEDBACK=0</code> 时无此段。</p>';
+        return;
+      }
+      host.innerHTML = "";
+      const wrap = document.createElement("div");
+      wrap.className = "turn-observe";
+      for (const row of fb) {
+        const det = document.createElement("details");
+        const sum = document.createElement("summary");
+        sum.textContent = `第 ${row.rank ?? "?"} 名 · ${row.slot_id || ""}（${row.display || ""}）`;
+        det.appendChild(sum);
+        const body = document.createElement("div");
+        body.className = "turn-slot-body";
+        if (row.error) {
+          const er = document.createElement("p");
+          er.className = "sub";
+          er.style.color = "#f85149";
+          er.style.margin = "0 0 8px";
+          er.textContent = String(row.error);
+          body.appendChild(er);
+        }
+        const pre = document.createElement("pre");
+        pre.textContent = String(row.text || row.raw_tail || "").trim() || "（无文本）";
+        body.appendChild(pre);
+        det.appendChild(body);
+        wrap.appendChild(det);
+      }
+      const outer = document.createElement("div");
+      outer.className = "turn-observe-outer scroll-panel scroll-panel--tall";
+      outer.setAttribute("aria-label", "赛后反馈列表");
+      outer.appendChild(wrap);
+      host.appendChild(outer);
+    }
+
+    async function tryLoad() {
+      try {
+        const data = await loadArenaState();
+        $("status").textContent = "已加载 arena_state.json（skill 根目录）";
+        paint(data);
+      } catch (e) {
+        $("status").textContent = "无法加载 arena_state.json：" + e.message + " — 可点「演示数据」预览界面。";
+        paint(DEMO_STATE);
+      }
+    }
+
+    let simPollId = null;
+
+    function stopSimPoll() {
+      if (simPollId != null) {
+        clearInterval(simPollId);
+        simPollId = null;
+      }
+      const b = $("btnStopPoll");
+      if (b) b.hidden = true;
+    }
+
+    async function checkServeWeb() {
+      try {
+        const r = await fetch(arenaApi("ping"), { cache: "no-store" });
+        const j = await r.json();
+        return r.ok && j && j.handler === "arena-serve-web";
+      } catch {
+        return false;
+      }
+    }
+
+    const DEFAULT_ARENA_TEAM_IDS = [
+      "deepseek_momentum_trader",
+      "mimo_value_investor",
+      "minimax_macro_hedger",
+      "zhipu_quant_disciplinarian",
+    ];
+
+    /**
+     * @param {HTMLElement | null} slotBox 勾选容器
+     * @param {HTMLInputElement | null} manualInp 手动 id 输入框
+     */
+    function buildFormationPresetsEl(slotBox, manualInp) {
+      const ids = DEFAULT_ARENA_TEAM_IDS;
+      const wrap = document.createElement("div");
+      wrap.className = "preset-formation";
+      const lab = document.createElement("p");
+      lab.className = "sub preset-formation__label";
+      lab.textContent = "一键编队（等同终端 --contestants 逗号串，不必手打命名）：";
+      wrap.appendChild(lab);
+      const row = document.createElement("div");
+      row.className = "preset-formation__row";
+
+      let updSelHint = () => {};
+
+      function applyCount(n) {
+        if (manualInp) {
+          manualInp.value = n <= 0 ? "" : ids.slice(0, Math.min(n, ids.length)).join(",");
+          manualInp.dispatchEvent(new Event("input", { bubbles: true }));
+          return;
+        }
+        if (!slotBox) return;
+        const pick = new Set(ids.slice(0, Math.min(n, ids.length)));
+        slotBox.querySelectorAll('input[name="runSlot"]').forEach((cb) => {
+          cb.checked = pick.has(cb.value);
+        });
+        updSelHint();
+      }
+
+      [
+        ["全员出战 · 4", 4],
+        ["三方争霸 · 3", 3],
+        ["二人对线 · 2", 2],
+        ["清空编队", 0],
+      ].forEach(([label, n]) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "btn btn-preset";
+        b.textContent = label;
+        b.addEventListener("click", () => applyCount(n));
+        row.appendChild(b);
+      });
+      wrap.appendChild(row);
+      return {
+        element: wrap,
+        setUpdSelHint(fn) {
+          updSelHint = typeof fn === "function" ? fn : () => {};
+        },
+      };
+    }
+
+    function renderContestantPicker(contestants) {
+      const host = $("runContestantsHost");
+      host.innerHTML = "";
+      const hint = document.createElement("p");
+      hint.className = "sub";
+      hint.style.marginTop = "0";
+      if (!contestants.length) {
+        hint.innerHTML =
+          "当前拉不到 <code>arena_config.yaml</code> 的 contestants：可<strong>手动输入 id</strong>（2～4 个），或点下面按钮一键写入本仓库默认「四大天王」槽位。";
+        host.appendChild(hint);
+        const manual = document.createElement("input");
+        manual.type = "text";
+        manual.className = "inp";
+        manual.id = "runContestantsManual";
+        manual.placeholder = DEFAULT_ARENA_TEAM_IDS.join(",");
+        const pre = buildFormationPresetsEl(null, manual);
+        host.appendChild(pre.element);
+        host.appendChild(manual);
+        return;
+      }
+      hint.textContent =
+        "勾选 2～4 名上场（须与 configs/arena_config.yaml 中 id 一致）。也可用「一键编队」代替手点：";
+      host.appendChild(hint);
+      const box = document.createElement("div");
+      box.className = "field-row field-row--inline";
+      box.style.flexWrap = "wrap";
+      box.style.gap = "10px";
+      contestants.forEach((c, i) => {
+        const id = String(c.id || "").trim();
+        if (!id) return;
+        const lab = document.createElement("label");
+        lab.className = "radio-pill";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.name = "runSlot";
+        cb.value = id;
+        if (i < Math.min(4, contestants.length)) cb.checked = true;
+        lab.appendChild(cb);
+        const disp = c.display ? ` · ${String(c.display)}` : "";
+        lab.appendChild(document.createTextNode(` ${id}${disp}`));
+        box.appendChild(lab);
+      });
+      const presetCtl = buildFormationPresetsEl(box, null);
+      host.appendChild(presetCtl.element);
+      host.appendChild(box);
+      const selHint = document.createElement("p");
+      selHint.className = "sub";
+      selHint.id = "runSelectionHint";
+      selHint.style.marginTop = "8px";
+      function updSelHint() {
+        const n = box.querySelectorAll('input[name="runSlot"]:checked').length;
+        selHint.textContent = `当前已勾选 ${n} 人上场。像素榜与 NAV 表展示的是最近一次已写入的 sim 结果；与勾选不一致时请先点「开始比赛」跑完本场。`;
+      }
+      presetCtl.setUpdSelHint(updSelHint);
+      box.querySelectorAll('input[name="runSlot"]').forEach((el) => el.addEventListener("change", updSelHint));
+      updSelHint();
+      host.appendChild(selHint);
+    }
+
+    async function initRunPanel() {
+      const warn = $("runApiWarn");
+      const ok = await checkServeWeb();
+      if (!ok) {
+        warn.textContent =
+          "未检测到本机 serve_web：请先运行 python scripts/serve_web.py，再用 http://127.0.0.1:8765/web/arena.html 打开本页。";
+        renderContestantPicker([]);
+        const btn = $("btnStartSim");
+        if (btn) btn.disabled = true;
+        return;
+      }
+      warn.textContent = "";
+      const btn = $("btnStartSim");
+      if (btn) btn.disabled = false;
+      try {
+        const r = await fetch(arenaApi("arena-config"), { cache: "no-store" });
+        const j = await r.json();
+        const list = j && j.ok && j.config && Array.isArray(j.config.contestants) ? j.config.contestants : [];
+        renderContestantPicker(list);
+      } catch {
+        renderContestantPicker([]);
+      }
+    }
+
+    function collectContestantsCsv() {
+      const manual = $("runContestantsManual");
+      if (manual) return String(manual.value || "").trim();
+      return [...document.querySelectorAll('input[name="runSlot"]:checked')]
+        .map((x) => x.value.trim())
+        .filter(Boolean)
+        .join(",");
+    }
+
+    function setRunUiLocked(locked) {
+      const b = $("btnStartSim");
+      if (b) b.disabled = locked;
+      document.querySelectorAll('input[name="runSlot"]').forEach((x) => {
+        x.disabled = locked;
+      });
+      const manual = $("runContestantsManual");
+      if (manual) manual.disabled = locked;
+      const dur = $("runDuration");
+      if (dur) dur.disabled = locked;
+      ["runMaxRounds", "runSecPerRound", "runScenarioMd", "runPricesJson", "runSymbolsOverride", "runFreezePrices", "runMdFile", "runJsonFile"].forEach((id) => {
+        const el = $(id);
+        if (el) el.disabled = locked;
+      });
+      document.querySelectorAll("button.btn-preset").forEach((b) => {
+        b.disabled = locked;
+      });
+    }
+
+    async function pollRunOnce() {
+      const pr = $("runProgress");
+      try {
+        const r = await fetch(arenaApi("run-sim-status"), { cache: "no-store" });
+        const j = await r.json();
+        if (!j.ok) {
+          pr.textContent = j.error || "状态接口异常";
+          return;
+        }
+        if (j.running) {
+          wasSimRunning = true;
+          let line = "比赛进行中（后台 arena_run）…";
+          if (j.live && j.live.active) {
+            const r = j.live.round;
+            line = `第 ${r != null ? r : "?"} 回合 · 已按快照刷新 NAV 榜（像素条 + 表格）`;
+            arenaSceneData = mergeLiveArenaPayload(arenaSceneData, j.live);
+            paintLiveCharts(arenaSceneData);
+          }
+          pr.textContent = line;
+          return;
+        }
+        if (j.exit_code === null) {
+          pr.textContent = "空闲";
+          return;
+        }
+        stopSimPoll();
+        setRunUiLocked(false);
+        if (wasSimRunning && j.exit_code === 0) {
+          settlementUntilMs = performance.now() + 10000;
+        }
+        wasSimRunning = false;
+        if (j.exit_code === 0) {
+          pr.textContent = "已完成，正在刷新擂台数据…";
+          await tryLoad();
+          pr.textContent = "已完成并刷新。可打开「真实金融建议」查看 weights。";
+        } else {
+          const tail = (j.stderr_tail || "").slice(-800);
+          pr.textContent = "失败 exit=" + j.exit_code + (tail ? " — " + tail : "");
+        }
+      } catch (e) {
+        pr.textContent = String(e.message || e);
+      }
+    }
+
+    async function startSimFromPanel() {
+      const csv = collectContestantsCsv();
+      const n = csv.split(",").filter(Boolean).length;
+      const pr = $("runProgress");
+      if (n < 2 || n > 4) {
+        pr.textContent = "请选择或填写 2～4 个选手 id";
+        return;
+      }
+      let dur = Number($("runDuration").value);
+      if (!Number.isFinite(dur)) dur = 60;
+      dur = Math.max(15, Math.min(7200, Math.floor(dur)));
+
+      const payload = { contestants: csv, duration: dur };
+      const mr = Number($("runMaxRounds")?.value);
+      if (Number.isFinite(mr) && mr > 0) payload.max_rounds = Math.min(500, Math.floor(mr));
+      const spr = Number($("runSecPerRound")?.value);
+      if (Number.isFinite(spr) && spr > 0) payload.seconds_per_round = Math.min(600, Math.max(5, spr));
+      const md = String($("runScenarioMd")?.value || "").trim();
+      if (md) payload.scenario_md = md;
+      const pj = String($("runPricesJson")?.value || "").trim();
+      if (pj) {
+        try {
+          const o = JSON.parse(pj);
+          if (!o || typeof o !== "object" || Array.isArray(o)) throw new Error("须为对象");
+          payload.initial_prices = o;
+        } catch (e) {
+          pr.textContent = "初始价 JSON 无法解析：" + (e.message || e);
+          return;
+        }
+      }
+      const ovs = String($("runSymbolsOverride")?.value || "").trim();
+      if (ovs) payload.scenario_symbols = ovs;
+      if ($("runFreezePrices")?.checked) payload.freeze_prices = true;
+
+      pr.textContent = "正在提交…";
+      try {
+        const r = await fetch(arenaApi("run-sim"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const text = await r.text();
+        let j;
+        try {
+          j = JSON.parse(text);
+        } catch {
+          pr.textContent = "响应非 JSON，HTTP " + r.status;
+          return;
+        }
+        if (r.status === 409) {
+          pr.textContent = j.error || "已有比赛在进行";
+          return;
+        }
+        if (!j.ok) {
+          pr.textContent = j.error || "HTTP " + r.status;
+          return;
+        }
+        stopSimPoll();
+        setRunUiLocked(true);
+        pr.textContent = "已提交，轮询状态中…";
+        settlementUntilMs = null;
+        simPollId = setInterval(() => pollRunOnce(), 1500);
+        const sb = $("btnStopPoll");
+        if (sb) sb.hidden = false;
+        pollRunOnce();
+      } catch (e) {
+        pr.textContent = String(e.message || e);
+      }
+    }
+
+    $("runMdFile")?.addEventListener("change", async (ev) => {
+      const f = ev.target?.files?.[0];
+      if (!f) return;
+      try {
+        $("runScenarioMd").value = await f.text();
+      } catch (e) {
+        $("runProgress").textContent = "读取 md 失败：" + (e.message || e);
+      }
+    });
+    $("runJsonFile")?.addEventListener("change", async (ev) => {
+      const f = ev.target?.files?.[0];
+      if (!f) return;
+      try {
+        $("runPricesJson").value = await f.text();
+      } catch (e) {
+        $("runProgress").textContent = "读取 json 失败：" + (e.message || e);
+      }
+    });
+
+    $("btnReload").addEventListener("click", tryLoad);
+    $("btnDemo").addEventListener("click", () => {
+      $("status").textContent = "演示数据";
+      settlementUntilMs = null;
+      paint(DEMO_STATE);
+    });
+
+    $("btnStartSim").addEventListener("click", startSimFromPanel);
+    $("btnStopPoll").addEventListener("click", () => {
+      stopSimPoll();
+      setRunUiLocked(false);
+      $("runProgress").textContent += " 已停止轮询（若比赛仍在后台，请勿重复点「开始」直至结束）。";
+    });
+
+    function arenaTick(nowMs) {
+      if (rankSwapAnim && nowMs - rankSwapAnim.t0 >= rankSwapAnim.durationMs) rankSwapAnim = null;
+      drawPixelRank($("pixelRank"), arenaSceneData);
+      drawPixelArenaScene(canvasEl, arenaSceneData, nowMs * 0.001, {
+        wallMs: nowMs,
+        rankSwapAnim,
+        settlementUntilMs,
+      });
+      requestAnimationFrame(arenaTick);
+    }
+    requestAnimationFrame(arenaTick);
+
+    (async () => {
+      await tryLoad();
+      await initRunPanel();
+    })();
+  </script>
+</body>
+</html>

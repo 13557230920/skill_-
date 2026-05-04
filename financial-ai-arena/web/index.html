@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>金融 AI 擂台赛</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;800&family=Noto+Sans+SC:wght@400;600;700&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body class="page-index">
+  <header class="topnav topnav--tournament">
+    <div class="brand">
+      <h1>金融 AI 擂台赛</h1>
+      <p class="brand-sub">Paper Arena · 多模型纸上交易</p>
+    </div>
+    <nav>
+      <a href="./arena-setup.html">擂台配置</a>
+      <a href="./arena.html">擂台竞技</a>
+      <a href="./advisor.html">真实金融建议</a>
+    </nav>
+  </header>
+  <div class="wrap wrap--wide">
+    <div class="index-intro">
+      <details class="panel-help">
+        <summary>使用前说明（像素页 / serve_web）</summary>
+        <p class="sub" style="margin:0">
+          擂台页为 <strong>纯 Canvas 像素绘制</strong>；数据来自 <code>arena_state.json</code>。请先在 skill 根目录执行
+          <code>python scripts/serve_web.py</code>，再用浏览器打开本站 <code>/web/</code> 下页面（勿 <code>file://</code>）。
+        </p>
+      </details>
+    </div>
+    <div class="warn">仅供学习演示，不构成投资建议。</div>
+
+    <div class="panel panel--ring" style="margin-top:16px">
+      <div class="panel-head-arcade">
+        <h2>模型接入</h2>
+        <span class="arcade-badge">YAML MERGE</span>
+      </div>
+      <p class="sub" style="margin-top:0">
+        写入 <code>configs/arena_config.yaml</code> 的 <code>providers:</code>；再到
+        <a href="./arena-setup.html">擂台配置</a> 拉取配置即可选用。<strong>密钥只写在 <code>.env</code></strong>，此处只填变量<strong>名</strong>。
+      </p>
+      <p id="providerApiWarn" class="sub" style="color:#f85149;margin-top:6px"></p>
+      <form id="formAddProvider" class="provider-form" autocomplete="off">
+        <section class="form-section">
+          <h3 class="form-section__title">接入身份 · PROVIDER</h3>
+          <div class="field-row field-row--grow">
+            <label for="pcId">provider id（小写蛇形）</label>
+            <input type="text" id="pcId" class="inp mono" required placeholder="如 kimi 或 my_volc" pattern="[a-z][a-z0-9_]*" autocomplete="off" />
+          </div>
+          <div class="field-row">
+            <label for="pcDriver">driver</label>
+            <select id="pcDriver" class="inp">
+              <option value="openai_compat">openai_compat（OpenAI 兼容）</option>
+              <option value="zhipu">zhipu（智谱）</option>
+            </select>
+          </div>
+          <div class="field-row field-row--grow">
+            <label for="pcEnvKey">环境变量名（放 Key 的名字）</label>
+            <input type="text" id="pcEnvKey" class="inp mono" required placeholder="如 MOONSHOT_API_KEY" pattern="[A-Z][A-Z0-9_]*" autocomplete="off" />
+          </div>
+          <div class="field-row field-row--grow">
+            <label for="pcModel">default_model</label>
+            <input type="text" id="pcModel" class="inp mono" required placeholder="如 moonshot-v1-32k / glm-4-plus" autocomplete="off" />
+          </div>
+        </section>
+
+        <section class="form-section">
+          <h3 class="form-section__title">网关与扩展 · GATEWAY</h3>
+          <div class="field-row field-row--grow" id="pcBaseUrlRow">
+            <label for="pcBaseUrl">base_url（openai_compat 必填）</label>
+            <input type="url" id="pcBaseUrl" class="inp mono" placeholder="https://api.moonshot.cn/v1" autocomplete="off" />
+          </div>
+          <div class="field-row" id="pcInvokeRow">
+            <label for="pcInvoke">invoke_style（可选）</label>
+            <select id="pcInvoke" class="inp">
+              <option value="">（默认）</option>
+              <option value="deepseek">deepseek</option>
+              <option value="mimo">mimo</option>
+            </select>
+          </div>
+          <div class="field-row field-row--grow">
+            <label for="pcExtraJson">openai_extra_body（JSON）</label>
+            <textarea id="pcExtraJson" class="inp mono" rows="2" placeholder='{"thinking":{"type":"disabled"}}'></textarea>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <h3 class="form-section__title">写回选项 · WRITE</h3>
+          <div class="field-row field-row--inline">
+            <label class="chk"><input type="checkbox" id="pcOverwrite" /> 若 id 已存在则覆盖</label>
+          </div>
+          <div class="field-row field-row--grow">
+            <label for="pcWriteToken">写入口令（可选）</label>
+            <input type="password" id="pcWriteToken" class="inp mono" placeholder="仅当 .env 有 ARENA_CONFIG_WRITE_TOKEN" autocomplete="off" />
+          </div>
+        </section>
+
+        <div class="form-actions-row">
+          <button type="submit" class="btn btn-primary">写入 arena_config.yaml</button>
+          <a class="btn" href="./arena-setup.html">去擂台配置选用 →</a>
+        </div>
+      </form>
+      <p id="providerResult" class="sub" style="margin-top:14px;white-space:pre-wrap"></p>
+    </div>
+
+    <div class="cards">
+      <a class="card" href="./arena-setup.html" style="color:inherit;text-decoration:none">
+        <h3>擂台配置页</h3>
+        <p class="sub" style="margin:0">选 2～4 个上场槽位、每人指定 provider/模型、一键或单槽生成人格 YAML；导出片段与 <code>arena_run.py --contestants</code> 命令（需 <code>serve_web.py</code> 提供 API）。</p>
+      </a>
+      <a class="card" href="./arena.html" style="color:inherit;text-decoration:none">
+        <h3>擂台竞技页</h3>
+        <p class="sub" style="margin:0">像素擂台、实时排名、NAV 条形榜；数据来自 <code>arena_state.json</code>（跑完 <code>arena_run.py --mode sim</code> 后刷新）。</p>
+      </a>
+      <a class="card" href="./advisor.html" style="color:inherit;text-decoration:none">
+        <h3>真实金融对话建议页</h3>
+        <p class="sub" style="margin:0">单页对话 + 权重条；自选槽位 / 权重合议 / 历练优先；上一场 sim 数据透明；对话入库并影响下一场擂台提示（<code>serve_web</code> API）。</p>
+      </a>
+    </div>
+  </div>
+  <script type="module">
+    import { bootProviderConnect } from "./provider-connect.js";
+    bootProviderConnect();
+  </script>
+</body>
+</html>
