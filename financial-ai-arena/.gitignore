@@ -1,0 +1,11 @@
+.env
+.agents/
+data/last_scenario_pack.json
+arena_live.json
+arena_advisor_memory.json
+arena_state.json
+arena_report.html
+configs/arena_config.yaml.bak
+__pycache__/
+*.pyc
+desktop/node_modules/

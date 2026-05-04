@@ -1,0 +1,62 @@
+{
+  "ok": true,
+  "config": {
+    "version": 1,
+    "providers": {
+      "zhipu": {
+        "driver": "zhipu",
+        "default_model": "glm-4-plus",
+        "env_api_key": "ZHIPU_API_KEY"
+      },
+      "deepseek": {
+        "driver": "openai_compat",
+        "default_model": "deepseek-chat",
+        "env_api_key": "DEEPSEEK_API_KEY"
+      },
+      "minimax": {
+        "driver": "openai_compat",
+        "default_model": "MiniMax-M2.7",
+        "env_api_key": "MINIMAX_API_KEY"
+      },
+      "mimo": {
+        "driver": "openai_compat",
+        "default_model": "mimo-v2.5-pro",
+        "env_api_key": "MIMO_API_KEY"
+      }
+    },
+    "contestants": [
+      {
+        "id": "ds_aggressive",
+        "provider": "deepseek",
+        "display": "DeepSeek·激进短线",
+        "model": null,
+        "persona": "你是激进型短线选手：重视动量与题材，可接受较高换手，但必须用一句话说明止损逻辑。",
+        "system_extra": ""
+      },
+      {
+        "id": "ds_value",
+        "provider": "deepseek",
+        "display": "DeepSeek·深度价值",
+        "model": null,
+        "persona": "你是深度价值型：偏好低估与现金流，厌恶追高；默认更常选择 hold 或小仓位试探。",
+        "system_extra": ""
+      },
+      {
+        "id": "ds_macro",
+        "provider": "deepseek",
+        "display": "DeepSeek·宏观对冲",
+        "model": null,
+        "persona": "你关注宏观与风格轮动，倾向分散与对冲思路，单票仓位保守。",
+        "system_extra": ""
+      },
+      {
+        "id": "ds_quant",
+        "provider": "deepseek",
+        "display": "DeepSeek·量化纪律",
+        "model": null,
+        "persona": "你强调规则与纪律：若信号不明确则 hold；避免情绪化加仓。",
+        "system_extra": ""
+      }
+    ]
+  }
+}

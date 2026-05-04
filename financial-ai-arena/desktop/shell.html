@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>擂台 · 桌面壳</title>
+  <link rel="stylesheet" href="./shell.css" />
+</head>
+<body>
+  <header class="bar">
+    <div class="bar-left">
+      <span class="logo">Arena</span>
+      <span id="status" class="status">检测中…</span>
+    </div>
+    <div class="bar-actions">
+      <label class="chk"><input type="checkbox" id="autostart" /> 打开时自动启动后端</label>
+      <button type="button" class="btn primary" id="btnStart">启动后端</button>
+      <button type="button" class="btn" id="btnStop">停止后端</button>
+      <button type="button" class="btn" id="btnReload">刷新页面</button>
+      <button type="button" class="btn" id="btnBrowser">系统浏览器打开</button>
+    </div>
+  </header>
+  <iframe id="frame" title="擂台配置" src="about:blank"></iframe>
+  <p id="hint" class="hint"></p>
+  <script src="./shell-renderer.js"></script>
+</body>
+</html>

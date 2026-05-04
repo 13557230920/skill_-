@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>擂台配置 · 金融 AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;800&family=Noto+Sans+SC:wght@400;600;700&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topnav topnav--tournament">
+    <div class="brand">
+      <h1>擂台配置</h1>
+      <p class="brand-sub">Roster · 人格与 provider</p>
+    </div>
+    <nav>
+      <a href="./index.html">首页</a>
+      <a href="./arena.html">擂台竞技</a>
+      <a href="./advisor.html">真实金融建议</a>
+    </nav>
+  </header>
+  <div class="wrap wrap--wide">
+    <p id="cfgStatus" class="sub">默认加载 <code>web/api/arena-config.json</code>；需要与当前 <code>arena_config.yaml</code> 完全一致或一键生成人格时再连动态接口。自定义 OpenAI 兼容/智谱等 provider 见 <a href="./index.html">首页 · 模型接入</a> 写入 yaml 后在此「拉取最新配置」。</p>
+    <div class="warn">
+      <strong>网页不能替你启动 Python。</strong>这是<strong>浏览器安全策略</strong>：任意网站（含本地打开的 HTML）若能在点击时执行本机命令，恶意页面即可盗数据、删文件；因此<strong>不存在</strong>「在页面里点一下就自动跑 <code>python …</code>」的合法做法。必须先有<strong>已在跑的</strong>后端，本页的「拉取配置 / 一键生成」才会生效。
+      <strong>少自己动手的路径：</strong>使用本 skill 下 <code>desktop/</code> 的 <strong>Electron 桌面壳</strong>（<code>npm install</code> 后 <code>npm start</code>）：窗口内可<strong>一键启动后端</strong>并内嵌本配置页，见 <code>desktop/README.txt</code>。或双击根目录 <code>start_serve_web.bat</code>；或在 Cursor：<strong>Tasks: Run Task</strong> → <strong>Arena: serve web (8765)</strong>。再用系统浏览器打开 <code>http://127.0.0.1:8765/web/arena-setup.html</code> 并点「从 serve_web 拉取最新配置」。
+      <strong>Simple Browser</strong> 多为纯静态：本页会读 <code>web/api/arena-config.json</code> 填表；一键生成仍依赖上面启动的后端。
+    </div>
+
+    <div class="panel">
+      <h2>全局</h2>
+      <p class="sub" style="margin-top:0">选择上场人数（2～4）、用于<strong>写稿</strong>的 writer（对应 <code>arena_config.yaml</code> 里的 <code>providers</code>），以及主题；各槽位可指定不同的参赛 <code>provider</code>（模型路由）。</p>
+      <div class="field-row field-row--inline">
+        <label>上场人数</label>
+        <label class="radio-pill"><input type="radio" name="activeCount" value="2" /> 2</label>
+        <label class="radio-pill"><input type="radio" name="activeCount" value="3" checked /> 3</label>
+        <label class="radio-pill"><input type="radio" name="activeCount" value="4" /> 4</label>
+      </div>
+      <div class="field-row">
+        <label>writer（调用谁生成 YAML）</label>
+        <select id="writerSel" class="inp"></select>
+      </div>
+      <div class="field-row field-row--grow">
+        <label>主题 / 擂台设定</label>
+        <textarea id="topicInp" class="inp" rows="2">A股纸交易模拟擂台：多回合买卖 hold，控制回撤</textarea>
+      </div>
+      <div class="field-row field-row--inline" style="margin-top:4px">
+        <button type="button" class="btn" id="btnLiveCfg">从 serve_web 拉取最新配置</button>
+        <button type="button" class="btn" id="btnCopyServeCmd">复制启动说明</button>
+        <span class="sub" style="margin:0">先启动后端，再拉配置；成功后可一键生成人格。</span>
+      </div>
+      <button type="button" class="btn btn-primary" id="btnBatch">一键生成上场槽人格</button>
+      <p id="apiHint" class="sub" style="margin-top:10px;margin-bottom:0"></p>
+    </div>
+
+    <div class="panel">
+      <h2>上场槽位</h2>
+      <p class="sub" style="margin-top:0">填写 id / 显示名 / 人格；可从现有 YAML 模板一键复制，再点「仅生成此槽」微调。未上场的槽位会变灰。</p>
+      <div id="slotsHost" class="setup-slots-grid"></div>
+    </div>
+
+    <div class="panel" id="rawPanel" hidden>
+      <h2>模型原始输出</h2>
+      <p class="sub" style="margin-top:0">解析失败时可手工从下文截取 YAML。</p>
+      <textarea id="rawOut" class="inp mono" rows="14" readonly></textarea>
+    </div>
+
+    <div class="panel">
+      <h2>导出</h2>
+      <p class="sub" style="margin-top:0">将下列片段合并进 <code>configs/arena_config.yaml</code> 的 <code>contestants:</code>（或替换同名 id）；然后在项目根执行复制的命令跑模拟。若已在本机运行 <code>serve_web</code>，可直接点<strong>写回配置文件</strong>（会备份 <code>arena_config.yaml.bak</code>，并重写整份 YAML，原注释可能丢失）。</p>
+      <div class="field-row field-row--grow">
+        <label>YAML 片段</label>
+        <textarea id="yamlOut" class="inp mono" rows="12" readonly></textarea>
+      </div>
+      <div class="field-row field-row--grow">
+        <label>推荐命令（在项目根）</label>
+        <textarea id="cliOut" class="inp mono" rows="2" readonly></textarea>
+      </div>
+      <div class="field-row field-row--grow">
+        <label>写入口令（可选）</label>
+        <input type="password" id="writeTokenInp" class="inp" placeholder="仅当 .env 中设置了 ARENA_CONFIG_WRITE_TOKEN 时填写" autocomplete="off" />
+      </div>
+      <button type="button" class="btn" id="btnDl">下载 YAML 文件</button>
+      <button type="button" class="btn" id="btnCopyCli">复制命令</button>
+      <button type="button" class="btn btn-primary" id="btnWriteCfg">写回 configs/arena_config.yaml</button>
+      <p id="exportHint" class="sub" style="margin-top:10px;margin-bottom:0"></p>
+    </div>
+  </div>
+  <script type="module">
+    import { bootArenaSetup } from "./arena-setup.js";
+    bootArenaSetup();
+  </script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+version: 1
+providers:
+  zhipu:
+    driver: zhipu
+    env_api_key: ZHIPU_API_KEY
+    default_model: glm-4-plus
+  deepseek:
+    driver: openai_compat
+    base_url: https://api.deepseek.com
+    env_api_key: DEEPSEEK_API_KEY
+    default_model: deepseek-chat
+    openai_extra_body:
+      thinking:
+        type: enabled
+    invoke_style: deepseek
+  minimax:
+    driver: openai_compat
+    base_url: https://api.minimaxi.com/v1
+    env_api_key: MINIMAX_API_KEY
+    default_model: MiniMax-M2.7
+  mimo:
+    driver: openai_compat
+    base_url: https://api.xiaomimimo.com/v1
+    env_api_key: MIMO_API_KEY
+    default_model: mimo-v2.5-pro
+    invoke_style: mimo
+  kimi:
+    driver: openai_compat
+    env_api_key: MOONSHOT_API_KEY
+    default_model: moonshot-v1-32k
+    base_url: https://api.moonshot.cn/v1
+  sss:
+    driver: openai_compat
+    env_api_key: KIMI_API_KEY
+    default_model: sss
+    base_url: https://api.moonshot.cn/v1
+contestants:
+- id: aggressive_trader
+  provider: mimo
+  display: 激进交易者
+  persona: '我是一个基于市场情绪和资金流向的博弈型交易者。
+
+    我擅长捕捉短期热点和资金异动，快速进出以获取差价。
+
+    我不依赖基本面或宏观数据，只关注图形、量能和盘口语言。
+
+    我严格设置止损点，单笔亏损不超过总资金的2%，通过高频止损来控制回撤。
+
+    我乐于在波动中寻找机会，但会果断止损，不恋战。'
+  system_extra: ''
+- id: value_investor
+  provider: kimi
+  display: 价值投资派
+  persona: '我是价值投资者，坚持基本面分析，寻找被低估的股票。
+
+    我长期持有，耐心等待价值回归，严格控制回撤。'
+  system_extra: ''
+- id: macro_analyst
+  provider: minimax
+  display: 宏观分析师
+  persona: '我基于宏观经济数据和政策导向进行交易。
+
+    我考虑利率、汇率、通胀等宏观变量，灵活调整仓位。'
+  system_extra: ''
+- id: quant_disciplined
+  provider: zhipu
+  display: 量化纪律派
+  persona: '我严格遵循量化模型信号，不掺杂主观判断。
+
+    我设置止损止盈，执行固定策略，控制回撤在目标范围内。'
+  system_extra: ''
