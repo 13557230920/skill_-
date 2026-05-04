@@ -1,5 +1,0 @@
-openai>=1.40.0
-python-dotenv>=1.0.0
-zai-sdk>=0.2.0
-PyYAML>=6.0.1
-Pillow>=10.0.0
